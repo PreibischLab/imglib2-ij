@@ -34,6 +34,8 @@
 
 package net.imglib2.img.display.imagej;
 
+import java.util.concurrent.ExecutorService;
+
 import ij.ImagePlus;
 import ij.VirtualStack;
 import ij.process.ByteProcessor;
@@ -46,6 +48,7 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.Converter;
 import net.imglib2.display.projector.IterableIntervalProjector2D;
+import net.imglib2.display.projector.MultithreadedIterableIntervalProjector2D;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.img.basictypeaccess.array.ArrayDataAccess;
@@ -75,7 +78,13 @@ public abstract class ImageJVirtualStack<S, T extends NativeType<T>> extends
 
 	private boolean isWritable = false;
 
-	protected ImageJVirtualStack( final RandomAccessibleInterval< S > source, final Converter< S, T > converter, final T type, final int ijtype ) {
+	/* old constructor -> non-multithreaded projector */
+	protected ImageJVirtualStack( final RandomAccessibleInterval< S > source, final Converter< S, T > converter, final T type, final int ijtype)
+	{
+		this(source, converter, type, ijtype, null);
+	}
+	
+	protected ImageJVirtualStack( final RandomAccessibleInterval< S > source, final Converter< S, T > converter, final T type, final int ijtype, ExecutorService service ) {
 		super( ( int ) source.dimension( 0 ), getDimension1Size( source ), null, null );
 
 		this.source = source;
@@ -98,7 +107,9 @@ public abstract class ImageJVirtualStack<S, T extends NativeType<T>> extends
 		this.numDimensions = source.numDimensions();
 
 		// if the source interval is not zero-min, we wrap it into a view that translates it to the origin
-		this.projector = new IterableIntervalProjector2D< >(0,1, Views.isZeroMin( source ) ? source : Views.zeroMin( source ), img, converter );
+		// if we were given an ExecutorService, use a multithreaded projector
+		this.projector = (service == null) ? new IterableIntervalProjector2D< >(0,1, Views.isZeroMin( source ) ? source : Views.zeroMin( source ), img, converter )
+				:  new MultithreadedIterableIntervalProjector2D< >(0,1, Views.isZeroMin( source ) ? source : Views.zeroMin( source ), img, converter, service );
 
 		switch ( ijtype )
 		{

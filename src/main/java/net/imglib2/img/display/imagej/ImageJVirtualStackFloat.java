@@ -34,6 +34,8 @@
 
 package net.imglib2.img.display.imagej;
 
+import java.util.concurrent.ExecutorService;
+
 import ij.ImagePlus;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.Converter;
@@ -47,12 +49,17 @@ import net.imglib2.view.Views;
  */
 public class ImageJVirtualStackFloat< S > extends ImageJVirtualStack< S, FloatType >
 {
-	public ImageJVirtualStackFloat( final RandomAccessibleInterval< S > source, final Converter< S, FloatType > converter )
+	public ImageJVirtualStackFloat( final RandomAccessibleInterval< S > source, final Converter< S, FloatType > converter)
 	{
-		super( source, converter, new FloatType(), ImagePlus.GRAY32 );
+		this(source, converter, null);
+	}
+	public ImageJVirtualStackFloat( final RandomAccessibleInterval< S > source, final Converter< S, FloatType > converter, ExecutorService service )
+	{
+		super( source, converter, new FloatType(), ImagePlus.GRAY32 , service);
 		imageProcessor.setMinAndMax( 0, 1 );
 	}
 
+	// TODO: do this multithreaded as well
 	public void setMinMax ( final RandomAccessibleInterval< S > source, final Converter< S, FloatType > converter )
 	{
 		final RandomAccessibleIntervalCursor< S > cursor = new RandomAccessibleIntervalCursor< >( Views.isZeroMin( source ) ? source : Views.zeroMin( source ) );
