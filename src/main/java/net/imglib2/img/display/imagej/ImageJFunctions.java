@@ -38,6 +38,8 @@ import ij.ImagePlus;
 import ij.VirtualStack;
 import ij.measure.Calibration;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import net.imagej.ImgPlus;
@@ -168,9 +170,11 @@ public class ImageJFunctions
 	 * Displays a complex type as power spectrum, phase spectrum, real values or
 	 * imaginary values depending on the converter
 	 */
-	public static < T extends ComplexType< T > > ImagePlus show( final RandomAccessibleInterval< T > img, final Converter< T, FloatType > converter, final String title )
+	public static < T extends ComplexType< T > > ImagePlus show( final RandomAccessibleInterval< T > img, final Converter< T, FloatType > converter, final String title)
 	{
-		final ImageJVirtualStackFloat< T > stack = new ImageJVirtualStackFloat< >( img, converter );
+		// TODO: make this method take service as a parameter
+		final ExecutorService service = Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() );
+		final ImageJVirtualStackFloat< T > stack = new ImageJVirtualStackFloat< >( img, converter, service );
 		final ImagePlus imp = new ImagePlus( title, stack );
 		imp.show();
 
@@ -274,9 +278,11 @@ public class ImageJFunctions
 	 */
 	public static < T extends RealType< T > > ImagePlus wrapFloat(
 			final RandomAccessibleInterval< T > img,
-			final String title )
+			final String title)
 	{
-		final ImageJVirtualStackFloat< T > stack = new ImageJVirtualStackFloat< >( img, new RealFloatConverter< T >() );
+		// TODO: make this method take service as a parameter
+		final ExecutorService service = Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() );
+		final ImageJVirtualStackFloat< T > stack = new ImageJVirtualStackFloat< >( img, new RealFloatConverter< T >(), service );
 		return makeImagePlus( img, stack, title );
 	}
 
@@ -313,9 +319,11 @@ public class ImageJFunctions
 	public static < T > ImagePlus wrapFloat(
 			final RandomAccessibleInterval< T > img,
 			final Converter< T, FloatType > converter,
-			final String title )
+			final String title)
 	{
-		final ImageJVirtualStackFloat< T > stack = new ImageJVirtualStackFloat< >( img, converter );
+		// TODO: make this method take service as a parameter
+		final ExecutorService service = Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() );
+		final ImageJVirtualStackFloat< T > stack = new ImageJVirtualStackFloat< >( img, converter, service );
 		return makeImagePlus( img, stack, title );
 	}
 
@@ -368,9 +376,11 @@ public class ImageJFunctions
 	 * Create a 24bit RGB {@link ImagePlus} from a
 	 * {@link RandomAccessibleInterval} a using a custom {@link Converter}.
 	 */
-	public static < T > ImagePlus wrapRGB( final RandomAccessibleInterval< T > img, final Converter< T, ARGBType > converter, final String title )
+	public static < T > ImagePlus wrapRGB( final RandomAccessibleInterval< T > img, final Converter< T, ARGBType > converter, final String title)
 	{
-		final ImageJVirtualStackARGB< T > stack = new ImageJVirtualStackARGB< >( img, converter );
+		// TODO: make this method take service as a parameter
+		final ExecutorService service = Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() );
+		final ImageJVirtualStackARGB< T > stack = new ImageJVirtualStackARGB< >( img, converter, service );
 		return makeImagePlus( img, stack, title );
 	}
 
@@ -418,9 +428,11 @@ public class ImageJFunctions
 	public static < T > ImagePlus wrapUnsignedByte(
 			final RandomAccessibleInterval< T > img,
 			final Converter< T, UnsignedByteType > converter,
-			final String title )
+			final String title)
 	{
-		final ImageJVirtualStackUnsignedByte< T > stack = new ImageJVirtualStackUnsignedByte< >( img, converter );
+		// TODO: make this method take service as a parameter
+		final ExecutorService service = Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() );
+		final ImageJVirtualStackUnsignedByte< T > stack = new ImageJVirtualStackUnsignedByte< >( img, converter, service );
 		return makeImagePlus( img, stack, title );
 	}
 
@@ -482,9 +494,12 @@ public class ImageJFunctions
 	public static < T > ImagePlus wrapUnsignedShort(
 			final RandomAccessibleInterval< T > img,
 			final Converter< T, UnsignedShortType > converter,
-			final String title )
+			final String title
+			)
 	{
-		final ImageJVirtualStackUnsignedShort< T > stack = new ImageJVirtualStackUnsignedShort< >( img, converter );
+		// TODO: make this method take service as a parameter
+		final ExecutorService service = Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() );
+		final ImageJVirtualStackUnsignedShort< T > stack = new ImageJVirtualStackUnsignedShort< >( img, converter, service );
 		return makeImagePlus( img, stack, title );
 	}
 
