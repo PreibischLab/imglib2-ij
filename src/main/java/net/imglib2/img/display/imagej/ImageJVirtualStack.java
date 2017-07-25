@@ -61,8 +61,8 @@ import net.imglib2.view.Views;
  * TODO
  * 
  */
-public abstract class ImageJVirtualStack<S, T extends NativeType<T>> extends
-		VirtualStack {
+public abstract class ImageJVirtualStack<S, T extends NativeType< T >> extends VirtualStack
+{
 	final private IterableIntervalProjector2D< S, T > projector;
 
 	final private int size;
@@ -77,6 +77,8 @@ public abstract class ImageJVirtualStack<S, T extends NativeType<T>> extends
 	final protected ImageProcessor imageProcessor;
 
 	private boolean isWritable = false;
+
+	final protected ExecutorService service;
 
 	/* old constructor -> non-multithreaded projector */
 	protected ImageJVirtualStack( final RandomAccessibleInterval< S > source, final Converter< S, T > converter, final T type, final int ijtype)
@@ -110,6 +112,8 @@ public abstract class ImageJVirtualStack<S, T extends NativeType<T>> extends
 		// if we were given an ExecutorService, use a multithreaded projector
 		this.projector = (service == null) ? new IterableIntervalProjector2D< >(0,1, Views.isZeroMin( source ) ? source : Views.zeroMin( source ), img, converter )
 				:  new MultithreadedIterableIntervalProjector2D< >(0,1, Views.isZeroMin( source ) ? source : Views.zeroMin( source ), img, converter, service );
+
+		this.service = service;
 
 		switch ( ijtype )
 		{

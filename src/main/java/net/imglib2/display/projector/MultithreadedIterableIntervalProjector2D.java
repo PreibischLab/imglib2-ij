@@ -14,14 +14,22 @@ import net.imglib2.FlatIterationOrder;
 import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.Converter;
-import net.imglib2.view.IntervalView;
-import net.imglib2.view.MixedTransformView;
 import net.imglib2.view.RandomAccessibleIntervalCursor;
 import net.imglib2.view.Views;
 
-
+/**
+ * Multithreaded version of {@link IterableIntervalProjector2D}. The output
+ * {@link IterableInterval} will be divided into approximately equally sized
+ * portions that are filled by separate threads.
+ *
+ * @author David Hoerl
+ *
+ * @param <A>
+ *            pixel type of the input
+ * @param <B>
+ *            pixel type of the output
+ */
 public class MultithreadedIterableIntervalProjector2D<A, B> extends IterableIntervalProjector2D< A, B >
 {
 
@@ -30,12 +38,11 @@ public class MultithreadedIterableIntervalProjector2D<A, B> extends IterableInte
 	private final int dimX;
 
 	private final int dimY;
-	
+
 	private final int nTasks;
 
 	public MultithreadedIterableIntervalProjector2D(int dimX, int dimY, RandomAccessible< A > source,
-			IterableInterval< B > target, Converter< ? super A, B > converter, ExecutorService service,
-			int nTasks)
+			IterableInterval< B > target, Converter< ? super A, B > converter, ExecutorService service, int nTasks)
 	{
 		super( dimX, dimY, source, target, converter );
 
@@ -44,11 +51,11 @@ public class MultithreadedIterableIntervalProjector2D<A, B> extends IterableInte
 		this.dimY = dimY;
 		this.nTasks = nTasks;
 	}
-	
+
 	public MultithreadedIterableIntervalProjector2D(int dimX, int dimY, RandomAccessible< A > source,
 			IterableInterval< B > target, Converter< ? super A, B > converter, ExecutorService service)
 	{
-		this(dimX, dimY, source, target, converter, service, Runtime.getRuntime().availableProcessors());
+		this( dimX, dimY, source, target, converter, service, Runtime.getRuntime().availableProcessors() );
 	}
 
 	@Override
@@ -63,8 +70,6 @@ public class MultithreadedIterableIntervalProjector2D<A, B> extends IterableInte
 		max[dimX] = target.max( 0 );
 		max[dimY] = target.max( 1 );
 
-		// TODO: this is ugly, but the only way to make sure, that iteration
-		// order fits in the case of one sized dims. Tobi?
 		final IterableInterval< A > ii = Views.iterable( Views.interval( source, new FinalInterval( min, max ) ) );
 
 		final long portionSize = target.size() / nTasks;
@@ -72,7 +77,7 @@ public class MultithreadedIterableIntervalProjector2D<A, B> extends IterableInte
 		final List< Callable< Void > > tasks = new ArrayList<>();
 		final AtomicInteger ai = new AtomicInteger();
 
-		for (int t = 0; t < nTasks; ++t)
+		for ( int t = 0; t < nTasks; ++t )
 		{
 			tasks.add( new Callable< Void >()
 			{
@@ -95,11 +100,13 @@ public class MultithreadedIterableIntervalProjector2D<A, B> extends IterableInte
 					sourceCursor.jumpFwd( i * portionSize );
 					long stepsTaken = 0;
 
-					if (target.iterationOrder().equals( ii.iterationOrder() ) && !( sourceCursor instanceof RandomAccessibleIntervalCursor ) )
+					if ( target.iterationOrder().equals( ii.iterationOrder() )
+							&& !( sourceCursor instanceof RandomAccessibleIntervalCursor ) )
 					{
 						// either map a portion or (for the last portion) go
 						// until the end
-						while ( ( i != nTasks - 1 && stepsTaken < portionSize ) || ( i == nTasks - 1 && targetCursor.hasNext() ) )
+						while ( ( i != nTasks - 1 && stepsTaken < portionSize )
+								|| ( i == nTasks - 1 && targetCursor.hasNext() ) )
 						{
 							stepsTaken++;
 							converter.convert( sourceCursor.next(), targetCursor.next() );
@@ -113,19 +120,20 @@ public class MultithreadedIterableIntervalProjector2D<A, B> extends IterableInte
 						final long width = target.dimension( 0 );
 						final long height = target.dimension( 1 );
 
-						final long initX = (i * portionSize) % width;
-						final long initY = (i * portionSize) / width;
+						final long initX = ( i * portionSize ) % width;
+						final long initY = ( i * portionSize ) / width;
 						// either map a portion or (for the last portion) go
 						// until the end
-						final long endX = (i == nTasks - 1) ? width : (initX + (i + 1) * portionSize) % width;
-						final long endY = (i == nTasks - 1) ? height - 1 : (initX + (i + 1) * portionSize) / width;
+						final long endX = ( i == nTasks - 1 ) ? width : ( initX + ( i + 1 ) * portionSize ) % width;
+						final long endY = ( i == nTasks - 1 ) ? height - 1
+								: ( initX + ( i + 1 ) * portionSize ) / width;
 
 						sourceRandomAccess.setPosition( initX, dimX );
 						sourceRandomAccess.setPosition( initY, dimY );
 
 						for ( long y = initY; y <= endY; ++y )
 						{
-							for ( long x = (y == initY ? initX : 0); x < ( y == endY ? endX : width); ++x )
+							for ( long x = ( y == initY ? initX : 0 ); x < ( y == endY ? endX : width ); ++x )
 							{
 								targetCursor.fwd();
 								converter.convert( sourceRandomAccess.get(), targetCursor.get() );
@@ -141,7 +149,8 @@ public class MultithreadedIterableIntervalProjector2D<A, B> extends IterableInte
 					{
 						// either map a portion or (for the last portion) go
 						// until the end
-						while ( ( i != nTasks - 1 && stepsTaken < portionSize ) || ( i == nTasks - 1 && targetCursor.hasNext() ) )
+						while ( ( i != nTasks - 1 && stepsTaken < portionSize )
+								|| ( i == nTasks - 1 && targetCursor.hasNext() ) )
 						{
 							stepsTaken++;
 
@@ -161,14 +170,13 @@ public class MultithreadedIterableIntervalProjector2D<A, B> extends IterableInte
 		try
 		{
 			List< Future< Void > > futures = service.invokeAll( tasks );
-			for (Future< Void > f : futures)
+			for ( Future< Void > f : futures )
 				f.get();
 		}
 		catch ( InterruptedException | ExecutionException e )
 		{
 			e.printStackTrace();
 		}
-
 
 	}
 
