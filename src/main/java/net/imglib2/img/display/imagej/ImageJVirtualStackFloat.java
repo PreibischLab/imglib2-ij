@@ -34,7 +34,13 @@
 
 package net.imglib2.img.display.imagej;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import ij.ImagePlus;
 import net.imglib2.RandomAccessibleInterval;
@@ -59,10 +65,16 @@ public class ImageJVirtualStackFloat< S > extends ImageJVirtualStack< S, FloatTy
 		imageProcessor.setMinAndMax( 0, 1 );
 	}
 
-	// TODO: do this multithreaded as well
-	public void setMinMax ( final RandomAccessibleInterval< S > source, final Converter< S, FloatType > converter )
+	public void setMinMax(final RandomAccessibleInterval< S > source, final Converter< S, FloatType > converter)
 	{
-		final RandomAccessibleIntervalCursor< S > cursor = new RandomAccessibleIntervalCursor< >( Views.isZeroMin( source ) ? source : Views.zeroMin( source ) );
+		if ( service != null )
+		{
+			setMinMaxMT( source, converter );
+			return;
+		}
+
+		final RandomAccessibleIntervalCursor< S > cursor = new RandomAccessibleIntervalCursor<>(
+				Views.isZeroMin( source ) ? source : Views.zeroMin( source ) );
 		final FloatType t = new FloatType();
 
 		if ( cursor.hasNext() )
@@ -84,9 +96,98 @@ public class ImageJVirtualStackFloat< S > extends ImageJVirtualStack< S, FloatTy
 					max = value;
 			}
 
-			System.out.println("fmax = " + max );
-			System.out.println("fmin = " + min );
+			System.out.println( "fmax = " + max );
+			System.out.println( "fmin = " + min );
 			imageProcessor.setMinAndMax( min, max );
 		}
+	}
+	
+	private void setMinMaxMT(final RandomAccessibleInterval< S > source, final Converter< S, FloatType > converter)
+	{
+		final long nTasks = Runtime.getRuntime().availableProcessors();
+		long size = 1;
+		for ( int d = 0; d < source.numDimensions(); ++d )
+			size *= source.dimension( d );
+
+		final long portionSize = size / nTasks;
+
+		final List< Callable< Void > > tasks = new ArrayList<>();
+		final AtomicInteger ai = new AtomicInteger();
+
+		final ArrayList< Float > mins = new ArrayList<>( (int) nTasks );
+		final ArrayList< Float > maxs = new ArrayList<>( (int) nTasks );
+
+		for ( int t = 0; t < nTasks; ++t )
+		{
+			tasks.add( new Callable< Void >()
+			{
+
+				@Override
+				public Void call() throws Exception
+				{
+					final int i = ai.getAndIncrement();
+					final RandomAccessibleIntervalCursor< S > cursor = new RandomAccessibleIntervalCursor<>(
+							Views.isZeroMin( source ) ? source : Views.zeroMin( source ) );
+					final FloatType t = new FloatType();
+					long stepsTaken = 0;
+
+					cursor.jumpFwd( i * portionSize );
+
+					float min = Float.MAX_VALUE;
+					float max = -Float.MAX_VALUE;
+
+					// either map a portion or (for the last portion) go
+					// until the end
+					while ( ( i != nTasks - 1 && stepsTaken < portionSize ) || ( i == nTasks - 1 && cursor.hasNext() ) )
+					{
+						stepsTaken++;
+						converter.convert( cursor.next(), t );
+
+						final float value = t.get();
+
+						if ( value < min )
+							min = value;
+
+						if ( value > max )
+							max = value;
+
+					}
+
+					mins.add( min );
+					maxs.add( max );
+
+					return null;
+				}
+
+			} );
+		}
+
+		try
+		{
+			List< Future< Void > > futures = service.invokeAll( tasks );
+			for ( Future< Void > f : futures )
+				f.get();
+		}
+		catch ( InterruptedException | ExecutionException e )
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		float min = Float.MAX_VALUE;
+		float max = -Float.MAX_VALUE;
+
+		for ( int t = 0; t < nTasks; t++ )
+		{
+			if ( min > mins.get( t ) )
+				min = mins.get( t );
+			if ( max < maxs.get( t ) )
+				max = maxs.get( t );
+		}
+
+		System.out.println( "fmax = " + max );
+		System.out.println( "fmin = " + min );
+		imageProcessor.setMinAndMax( min, max );
+
 	}
 }
